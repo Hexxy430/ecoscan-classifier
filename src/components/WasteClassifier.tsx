@@ -34,6 +34,7 @@ export default function WasteClassifier() {
   const [result, setResult] = useState<ClassificationResult | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -83,16 +84,43 @@ export default function WasteClassifier() {
     }
   };
 
+  const processImageFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImageSrc(e.target?.result as string);
+      setResult(null);
+      stopCamera();
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImageSrc(e.target?.result as string);
-        setResult(null);
-        stopCamera();
-      };
-      reader.readAsDataURL(file);
+      processImageFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      processImageFile(file);
     }
   };
 
@@ -222,13 +250,20 @@ export default function WasteClassifier() {
           <div className="grid md:grid-cols-2 gap-4">
             <Button
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               disabled={isModelLoading || isCameraActive}
               size="lg"
               variant="outline"
-              className="h-24 flex-col gap-2 hover:bg-primary/5 hover:border-primary transition-all"
+              className={`h-24 flex-col gap-2 transition-all ${
+                isDragging 
+                  ? 'bg-primary/10 border-primary border-2' 
+                  : 'hover:bg-primary/5 hover:border-primary'
+              }`}
             >
               <Upload className="w-8 h-8" />
-              <span>Upload Image</span>
+              <span>{isDragging ? 'Drop Image Here' : 'Upload or Drag Image'}</span>
             </Button>
             <input
               ref={fileInputRef}
