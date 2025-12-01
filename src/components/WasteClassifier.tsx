@@ -1,10 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import * as tf from '@tensorflow/tfjs';
-import * as tflite from '@tensorflow/tfjs-tflite';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Upload, Camera, Loader2, Recycle, Trash2, Leaf } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+// Declare global tflite from CDN
+declare global {
+  interface Window {
+    tflite: {
+      loadTFLiteModel: (url: string) => Promise<any>;
+    };
+  }
+}
 
 interface ClassificationResult {
   label: string;
@@ -20,7 +28,7 @@ const WASTE_CATEGORIES = [
 ];
 
 export default function WasteClassifier() {
-  const [model, setModel] = useState<tflite.TFLiteModel | null>(null);
+  const [model, setModel] = useState<any>(null);
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [result, setResult] = useState<ClassificationResult | null>(null);
@@ -45,7 +53,19 @@ export default function WasteClassifier() {
   const loadModel = async () => {
     try {
       setIsModelLoading(true);
-      const loadedModel = await tflite.loadTFLiteModel('/waste_classifier_f16_local.tflite');
+      
+      // Wait for tflite to be available from CDN
+      let attempts = 0;
+      while (!window.tflite && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (!window.tflite) {
+        throw new Error('TFLite library failed to load');
+      }
+      
+      const loadedModel = await window.tflite.loadTFLiteModel('/waste_classifier_f16_local.tflite');
       setModel(loadedModel);
       toast({
         title: "Model loaded successfully",
