@@ -22,9 +22,9 @@ interface ClassificationResult {
 }
 
 const WASTE_CATEGORIES = [
-  { label: 'Recycle (Plastic)', icon: Recycle, color: 'text-secondary' },
-  { label: 'Compost (Organic)', icon: Leaf, color: 'text-success' },
-  { label: 'Landfill (Trash)', icon: Trash2, color: 'text-destructive' }
+  { label: 'Biodegradable', icon: Leaf, color: 'text-success' },
+  { label: 'Non-Biodegradable', icon: Trash2, color: 'text-destructive' },
+  { label: 'Recycled', icon: Recycle, color: 'text-secondary' }
 ];
 
 export default function WasteClassifier() {
