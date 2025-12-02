@@ -274,27 +274,35 @@ export default function WasteClassifier() {
             />
             
             <Button
-              onClick={isCameraActive ? capturePhoto : startCamera}
-              disabled={isModelLoading}
+              onClick={startCamera}
+              disabled={isModelLoading || isCameraActive}
               size="lg"
               variant="outline"
               className="h-24 flex-col gap-2 hover:bg-secondary/5 hover:border-secondary transition-all"
             >
               <Camera className="w-8 h-8" />
-              <span>{isCameraActive ? 'Capture Photo' : 'Use Camera'}</span>
+              <span>Use Camera</span>
             </Button>
           </div>
         </Card>
 
         {/* Camera View */}
         {isCameraActive && (
-          <Card className="p-4 mb-6 bg-card/80 backdrop-blur">
+          <Card className="p-4 mb-6 bg-card/80 backdrop-blur space-y-4">
             <video
               ref={videoRef}
               autoPlay
               playsInline
               className="w-full rounded-lg"
             />
+            <Button
+              onClick={capturePhoto}
+              size="lg"
+              className="w-full bg-gradient-to-r from-secondary to-primary hover:opacity-90 transition-all"
+            >
+              <Camera className="w-5 h-5 mr-2" />
+              Capture Photo
+            </Button>
           </Card>
         )}
         <canvas ref={canvasRef} className="hidden" />
