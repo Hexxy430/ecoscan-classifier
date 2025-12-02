@@ -313,7 +313,7 @@ export default function WasteClassifier() {
               autoPlay
               playsInline
               muted
-              className="w-full rounded-lg"
+              className="w-full h-64 object-cover rounded-lg"
             />
             <Button
               onClick={capturePhoto}
