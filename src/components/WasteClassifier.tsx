@@ -147,6 +147,8 @@ export default function WasteClassifier() {
           await videoRef.current.play();
         } catch (playError) {
           console.error('Error playing video stream:', playError);
+          setIsCameraActive(false);
+          stopCamera();
           toast({
             title: "Video playback failed",
             description: "Unable to start camera preview",
@@ -154,14 +156,15 @@ export default function WasteClassifier() {
           });
         }
       }
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      toast({
-        title: "Camera access denied",
-        description: "Please allow camera access to use this feature",
-        variant: "destructive",
-      });
-    }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setIsCameraActive(false);
+        toast({
+          title: "Camera access denied",
+          description: "Please allow camera access to use this feature",
+          variant: "destructive",
+        });
+      }
   };
 
   const stopCamera = () => {
