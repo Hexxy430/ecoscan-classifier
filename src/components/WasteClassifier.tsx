@@ -134,6 +134,25 @@ export default function WasteClassifier() {
         setIsCameraActive(true);
         setImageSrc(null);
         setResult(null);
+
+        // Wait for video metadata to load
+        await new Promise<void>(resolve => {
+          videoRef.current!.onloadedmetadata = () => {
+            resolve();
+          };
+        });
+
+        // Explicitly play the video stream
+        try {
+          await videoRef.current.play();
+        } catch (playError) {
+          console.error('Error playing video stream:', playError);
+          toast({
+            title: "Video playback failed",
+            description: "Unable to start camera preview",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
@@ -293,6 +312,7 @@ export default function WasteClassifier() {
               ref={videoRef}
               autoPlay
               playsInline
+              muted
               className="w-full rounded-lg"
             />
             <Button
