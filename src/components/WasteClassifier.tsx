@@ -298,31 +298,29 @@ export default function WasteClassifier() {
               onChange={handleFileUpload}
               className="hidden"
             />
-            <canvas ref={canvasRef} className="hidden" />
           </div>
         </Card>
 
-        {/* Live Camera View (Desktop only) */}
+        {/* Camera View (Visible on Desktop when active) */}
         {isCameraActive && (
-          <Card className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
-            <div className="max-w-4xl w-full bg-card rounded-lg shadow-2xl p-6 space-y-4">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-[70vh] object-contain rounded-lg bg-black"
-              />
-              <Button onClick={capturePhoto} size="lg" className="w-full">
-                <Camera className="w-5 h-5 mr-2" />
-                Capture Photo
-              </Button>
-              <Button onClick={stopCamera} variant="ghost" className="w-full text-muted-foreground hover:bg-muted/10">
-                Exit Camera
-              </Button>
-            </div>
+          <Card className="p-4 mb-6 bg-card/80 backdrop-blur space-y-4">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-64 object-cover rounded-lg"
+            />
+            <Button onClick={capturePhoto} size="lg" className="w-full bg-gradient-to-r from-secondary to-primary hover:opacity-90 transition-all">
+              <Camera className="w-5 h-5 mr-2" />
+              Capture Photo
+            </Button>
+            <Button onClick={stopCamera} variant="ghost" className="w-full">
+              Exit Camera View
+            </Button>
           </Card>
         )}
+        <canvas ref={canvasRef} className="hidden" />
 
         {/* Image Preview & Classification */}
         {imageSrc && (
