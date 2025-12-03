@@ -132,11 +132,34 @@ export default function WasteClassifier() {
         video: { facingMode: 'environment' }
       });
       if (videoRef.current) {
+        // 1. Set the source object
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        setIsCameraActive(true);
+        setImageSrc(null);
+        setResult(null);
+
+        // 2. Wait for video metadata to load
+        await new Promise<void>(resolve => {
+          if (videoRef.current!.readyState >= 2) {
+            resolve();
+          } else {
+            videoRef.current!.onloadedmetadata = () => {
+              resolve();
+            };
+          }
+        });
+        
+        // 3. Force playback
+        try {
+          await videoRef.current.play();
+          // 4. Add a small timeout to allow rendering to catch up
+          await new Promise(resolve => setTimeout(resolve, 50)); 
+        } catch (playError) {
+          console.error('Error playing video stream:', playError);
+          stopCamera();
+          throw new Error('Video playback failed');
+        }
       }
-      setIsCameraActive(true);
-      setResult(null);
     } catch (error) {
       console.error('Error accessing camera:', error);
       toast({
