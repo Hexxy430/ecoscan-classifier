@@ -5,7 +5,6 @@ import { Card } from '@/components/ui/card';
 import { Upload, Camera, Loader2, Recycle, Trash2, Leaf } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-// Declare global tflite from CDN
 declare global {
   interface Window {
     tflite: {
@@ -33,29 +32,20 @@ export default function WasteClassifier() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [result, setResult] = useState<ClassificationResult | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
-  const [isCameraActive, setIsCameraActive] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     loadModel();
-    return () => {
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
   }, []);
 
   const loadModel = async () => {
     try {
       setIsModelLoading(true);
       
-      // Wait for tflite to be available from CDN
       let attempts = 0;
       while (!window.tflite && attempts < 50) {
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -89,7 +79,6 @@ export default function WasteClassifier() {
     reader.onload = (e) => {
       setImageSrc(e.target?.result as string);
       setResult(null);
-      stopCamera();
     };
     reader.readAsDataURL(file);
   };
@@ -124,74 +113,6 @@ export default function WasteClassifier() {
     }
   };
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setIsCameraActive(true);
-        setImageSrc(null);
-        setResult(null);
-
-        // Wait for video metadata to load
-        await new Promise<void>(resolve => {
-          videoRef.current!.onloadedmetadata = () => {
-            resolve();
-          };
-        });
-
-        // Explicitly play the video stream
-        try {
-          await videoRef.current.play();
-        } catch (playError) {
-          console.error('Error playing video stream:', playError);
-          setIsCameraActive(false);
-          stopCamera();
-          toast({
-            title: "Video playback failed",
-            description: "Unable to start camera preview",
-            variant: "destructive",
-          });
-        }
-      }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setIsCameraActive(false);
-        toast({
-          title: "Camera access denied",
-          description: "Please allow camera access to use this feature",
-          variant: "destructive",
-        });
-      }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-      setIsCameraActive(false);
-    }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        const imageData = canvas.toDataURL('image/jpeg');
-        setImageSrc(imageData);
-        stopCamera();
-      }
-    }
-  };
-
   const runPrediction = async () => {
     if (!model || !imageSrc) return;
 
@@ -201,19 +122,16 @@ export default function WasteClassifier() {
       img.src = imageSrc;
       await new Promise((resolve) => { img.onload = resolve; });
 
-      // Preprocess image
       let tensor = tf.browser.fromPixels(img);
       tensor = tf.image.resizeBilinear(tensor, [224, 224]);
       tensor = tensor.expandDims(0);
       tensor = tensor.cast('float32').div(255.0);
 
-      // Run prediction
       const prediction = model.predict(tensor) as tf.Tensor;
       const probabilities = await prediction.data();
       tensor.dispose();
       prediction.dispose();
 
-      // Get highest probability
       const maxIndex = probabilities.indexOf(Math.max(...Array.from(probabilities)));
       const confidence = probabilities[maxIndex];
       
@@ -275,7 +193,7 @@ export default function WasteClassifier() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              disabled={isModelLoading || isCameraActive}
+              disabled={isModelLoading}
               size="lg"
               variant="outline"
               className={`h-24 flex-col gap-2 transition-all ${
@@ -296,8 +214,8 @@ export default function WasteClassifier() {
             />
             
             <Button
-              onClick={startCamera}
-              disabled={isModelLoading || isCameraActive}
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={isModelLoading}
               size="lg"
               variant="outline"
               className="h-24 flex-col gap-2 hover:bg-secondary/5 hover:border-secondary transition-all"
@@ -305,36 +223,16 @@ export default function WasteClassifier() {
               <Camera className="w-8 h-8" />
               <span>Use Camera</span>
             </Button>
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
           </div>
         </Card>
-
-        {/* Camera View */}
-        {isCameraActive && (
-          <Card className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
-            <div className="max-w-4xl w-full bg-card rounded-lg shadow-2xl p-6 space-y-4">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-[70vh] object-contain rounded-lg bg-black"
-              />
-              <Button
-                onClick={capturePhoto}
-                size="lg"
-                className="w-full bg-gradient-to-r from-secondary to-primary hover:opacity-90 transition-all"
-              >
-                <Camera className="w-5 h-5 mr-2" />
-                Capture Photo
-              </Button>
-              
-              <Button onClick={stopCamera} variant="ghost" className="w-full text-white/70 hover:bg-white/10">
-                Exit Camera
-              </Button>
-            </div>
-          </Card>
-        )}
-        <canvas ref={canvasRef} className="hidden" />
 
         {/* Image Preview & Classification */}
         {imageSrc && (
@@ -407,7 +305,7 @@ export default function WasteClassifier() {
         )}
 
         {/* Initial State */}
-        {!imageSrc && !isCameraActive && (
+        {!imageSrc && (
           <Card className="p-12 text-center bg-card/50 backdrop-blur border-dashed border-2 border-muted-foreground/30">
             <Recycle className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
             <p className="text-lg text-muted-foreground">
