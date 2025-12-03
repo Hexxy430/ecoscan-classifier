@@ -26,6 +26,10 @@ const WASTE_CATEGORIES = [
   { label: 'Recycled', icon: Recycle, color: 'text-secondary' }
 ];
 
+const isMobileDevice = () => {
+  return /Mobi|Android/i.test(navigator.userAgent);
+};
+
 export default function WasteClassifier() {
   const [model, setModel] = useState<any>(null);
   const [isModelLoading, setIsModelLoading] = useState(true);
@@ -33,13 +37,22 @@ export default function WasteClassifier() {
   const [result, setResult] = useState<ClassificationResult | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     loadModel();
+    return () => {
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
   }, []);
 
   const loadModel = async () => {
@@ -110,6 +123,60 @@ export default function WasteClassifier() {
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) {
       processImageFile(file);
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setIsCameraActive(true);
+      setResult(null);
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      toast({
+        title: "Camera access denied",
+        description: "Please enable camera permissions to use this feature",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setImageSrc(dataUrl);
+        stopCamera();
+      }
+    }
+  };
+
+  const handleCameraClick = () => {
+    if (isMobileDevice()) {
+      cameraInputRef.current?.click();
+    } else {
+      startCamera();
     }
   };
 
@@ -214,8 +281,8 @@ export default function WasteClassifier() {
             />
             
             <Button
-              onClick={() => cameraInputRef.current?.click()}
-              disabled={isModelLoading}
+              onClick={handleCameraClick}
+              disabled={isModelLoading || isCameraActive}
               size="lg"
               variant="outline"
               className="h-24 flex-col gap-2 hover:bg-secondary/5 hover:border-secondary transition-all"
@@ -231,8 +298,31 @@ export default function WasteClassifier() {
               onChange={handleFileUpload}
               className="hidden"
             />
+            <canvas ref={canvasRef} className="hidden" />
           </div>
         </Card>
+
+        {/* Live Camera View (Desktop only) */}
+        {isCameraActive && (
+          <Card className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
+            <div className="max-w-4xl w-full bg-card rounded-lg shadow-2xl p-6 space-y-4">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-[70vh] object-contain rounded-lg bg-black"
+              />
+              <Button onClick={capturePhoto} size="lg" className="w-full">
+                <Camera className="w-5 h-5 mr-2" />
+                Capture Photo
+              </Button>
+              <Button onClick={stopCamera} variant="ghost" className="w-full text-muted-foreground hover:bg-muted/10">
+                Exit Camera
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {/* Image Preview & Classification */}
         {imageSrc && (
